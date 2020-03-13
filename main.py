@@ -1,41 +1,36 @@
+import multiprocessing
+import itertools
+
 import numpy as np
-import pickle
 
 from gblda import GibbsLDA
 
 
 np.random.seed(0)
 
+# with open("data/pseudo_data.txt", "r") as fp:
 with open("data/data.txt", "r") as fp:
     fp_lines = fp.readlines()
 
-num_docs = int(fp_lines[0])
-dict_word2ind = dict()
-list_ind2word = list()
-corpus = list()
 
-for line in fp_lines[1:]:
-    words = line.strip().split(" ")
-    document = list()
-    for word in words:
-        if word not in dict_word2ind:
-            dict_word2ind[word] = len(list_ind2word)
-            list_ind2word.append(word)
-        document.append(dict_word2ind[word])
-    corpus.append(document)
-assert len(corpus) == num_docs
-for word, ind in dict_word2ind.items():
-    assert list_ind2word[ind] == word
-
-num_words = len(list_ind2word)
-
-print("Number of documents:", num_docs)
-print("Number of words:", num_words)
+def train_lda(argv):
+    global fp_lines
+    lda = GibbsLDA(*argv, iterations=100, verbose=False)
+    lda.fit(fp_lines[1:])
+    lda.save_state("output/z_{}_{}_{}.npz".format(*argv))
+    return lda
 
 
-lda = GibbsLDA(n_components=3, iterations=2000)
-lda.fit(fp_lines[1:])
+range_n_components = [2, 3, 5, 7, 10, 20]
+range_doc_topic_prior = [0.1, 0.5, 1.0, 2.0, 5.0, 10.0]
+range_topic_word_prior = [0.1, 0.5, 1.0, 2.0, 5.0, 10.0]
 
-print(lda.theta[0])
-with open("save.pkl", "wb") as fp:
-    pickle.dump(lda, fp)
+hyperparameters = list()
+for (n_components, doc_topic_prior, topic_word_prior) in itertools.product(
+        range_n_components, range_doc_topic_prior, range_topic_word_prior):
+    doc_topic_prior *= 1/n_components
+    topic_word_prior *= 1/n_components
+    hyperparameters.append((n_components, doc_topic_prior, topic_word_prior))
+
+pool = multiprocessing.Pool(processes=200)
+LDAs = pool.map(train_lda, hyperparameters)
