@@ -1,3 +1,5 @@
+"""Copyright (c) 2020 Chengjie Wu"""
+
 import multiprocessing
 import itertools
 
@@ -23,7 +25,7 @@ def train_lda(argv):
 
 range_n_components = [2, 3, 5, 7, 10, 20]
 range_doc_topic_prior = [0.1, 0.5, 1.0, 2.0, 5.0, 10.0]
-range_topic_word_prior = [0.1, 0.5, 1.0, 2.0, 5.0, 10.0]
+range_topic_word_prior = [0.01, 0.02, 0.05, 0.1, 0.5, 1.0, 2.0, 5.0, 10.0]
 
 hyperparameters = list()
 for (n_components, doc_topic_prior, topic_word_prior) in itertools.product(

@@ -1,3 +1,5 @@
+"""Copyright (c) 2020 Chengjie Wu"""
+
 import time
 
 import numpy as np
@@ -6,6 +8,16 @@ import numpy as np
 class GibbsLDA:
     def __init__(self, n_components=3, doc_topic_prior=None,
                  topic_word_prior=None, iterations=1000, verbose=True):
+        """Latent Dirichlet Allocation with Gibbs sampling
+
+        :param n_components: int, number of topics
+        :param doc_topic_prior: float, alpha. If None, 1/n_components*0.5 is set
+            by default.
+        :param topic_word_prior: float, beta. If None, 1/n_components*0.1 is set
+            by default.
+        :param iterations: int, iterations of Gibbs sampling
+        :param verbose: bool, whether to print intermediate results
+        """
 
         self.loaded = False
         self.verbose = verbose
@@ -13,9 +25,9 @@ class GibbsLDA:
         self.n_components = n_components
         self.iterations = iterations
         self.doc_topic_prior = \
-            doc_topic_prior if doc_topic_prior else 1/n_components
+            doc_topic_prior if doc_topic_prior else 1/n_components*0.5
         self.topic_word_prior = \
-            topic_word_prior if topic_word_prior else 1/n_components
+            topic_word_prior if topic_word_prior else 1/n_components*0.1
 
         self.num_docs = None
         self.num_words = None
@@ -37,17 +49,40 @@ class GibbsLDA:
         self.phi = None         # best phi
         self.z_best = None      # best z
         self.ll_best = None     # best ll
-        self.log = None
+        self.log = None         # record log likelihood during training
 
     def load_state(self, X, file):
+        """Load LDA state from file.
+
+        :param X: a list of strings, corpus. Each string represents a document,
+            and words are separated with space.
+        :param file: string, file to load.
+        :return: None.
+        """
         self._initializing_corpus(X, file)
         self.loaded = True
 
     def save_state(self, file):
+        """Save LDA state to file.
+
+        Note that we do not save the corpus. When the LDA is loaded next time,
+        it MUST read in exactly the same corpus. Behaviors are undefined if not.
+
+        :param file: string, file to save.
+        :return: None.
+        """
         np.savez(file, z_mn=self.z_mn, theta=self.theta, phi=self.phi,
                  z_best=self.z_best, ll_best=self.ll_best, log=self.log)
 
     def fit(self, X, y=None):
+        """ Train LDA.
+
+        :param X: a list of strings, corpus. Each string represents a document,
+            and words are separated with space. If state is loaded, either
+            through load_state or a previous call to fit, X is ignored.
+        :param y: ignored.
+        :return: None.
+        """
         if not self.loaded:
             self._initializing_corpus(X)
             self.loaded = True
@@ -157,6 +192,10 @@ class GibbsLDA:
             self.log = list()
 
     def _gibbs_sampling_iteration(self):
+        """ One Gibbs sampling step.
+
+        :return: None.
+        """
         for m, dm in enumerate(self.corpus):
             for n, w_mn in enumerate(dm):
                 k = self.z_mn[m, n]
@@ -175,6 +214,7 @@ class GibbsLDA:
 
     @staticmethod
     def _conditional_z(K, alpha, beta, n_mk, n_kt, m, t, beta_sum, n_k):
+        """Sample new z_mt using conditional distribution."""
         probability = \
             (alpha + n_mk[m, :]) * ((beta[t] + n_kt[:, t]) / (beta_sum + n_k))
         probability /= np.sum(probability)
@@ -184,26 +224,55 @@ class GibbsLDA:
         return np.random.choice(K, p=probability)
 
     def calculate_theta(self, M=None, K=None, alpha=None, n_mk=None):
+        """ Calculate theta.
+
+        If parameters are not given, then corresponding parameters are picked
+        from current LDA.
+
+        :param M: int, number of documents.
+        :param K: int, number of topics.
+        :param alpha: numpy array of shape [K, ], alpha.
+        :param n_mk: numpy array of shape [M, K], n_mk.
+        :return: numpy array of shape [M, K], theta.
+        """
         M = M if M is not None else self.num_docs
         K = K if K is not None else self.n_components
         alpha = alpha if alpha is not None else self.alpha
         n_mk = n_mk if n_mk is not None else self.n_mk
-        theta = np.zeros(shape=(M, K))
-        for m in range(M):
-            theta[m, :] = (alpha + n_mk[m, :]) / np.sum(alpha + n_mk[m, :])
+        theta = n_mk + np.tile(alpha, (M, 1))
+        theta /= np.repeat(np.sum(theta, axis=1).reshape((-1, 1)), K, axis=1)
         return theta
 
     def calculate_phi(self, K=None, V=None, beta=None, n_kt=None):
+        """ Calculate phi.
+
+        If parameters are not given, then corresponding parameters are picked
+        from current LDA.
+
+        :param K: int, number of topics.
+        :param V: int, number of words (size of vocabulary).
+        :param beta: numpy array of shape [V, ], beta.
+        :param n_kt: numpy array of shape [K, V], n_kt.
+        :return: numpy array of shape [K, V], phi.
+        """
         K = K if K is not None else self.n_components
         V = V if V is not None else self.num_words
         beta = beta if beta is not None else self.beta
         n_kt = n_kt if n_kt is not None else self.n_kt
-        phi = np.zeros(shape=(K, V))
-        for k in range(K):
-            phi[k, :] = (beta + n_kt[k, :]) / np.sum(beta + n_kt[k, :])
+        phi = n_kt + np.tile(beta, (K, 1))
+        phi /= np.repeat(np.sum(phi, axis=1).reshape((-1, 1)), V, axis=1)
         return phi
 
     def log_likelihood(self, theta=None, phi=None):
+        """ Calculate log likelihood with respect to this LDA's corpus.
+
+        If parameters are not given, then corresponding parameters are picked
+        from current LDA.
+
+        :param theta: numpy array of shape [M, K], theta.
+        :param phi: numpy array of shape [K, V], phi.
+        :return: float, log likelihood.
+        """
         theta = theta if theta is not None else self.theta
         phi = phi if phi is not None else self.phi
         ret = 0.
@@ -216,6 +285,14 @@ class GibbsLDA:
         return ret
 
     def get_representative_words(self, phi=None):
+        """ Get top 10 representative words in each topic.
+
+        If parameters are not given, then corresponding parameters are picked
+        from current LDA.
+
+        :param phi: numpy array of shape [K, V], phi.
+        :return: None.
+        """
         phi = phi if phi is not None else self.phi
         for i in range(self.n_components):
             print("Topic", i)
