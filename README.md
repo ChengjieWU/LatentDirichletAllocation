@@ -66,15 +66,21 @@ Supprisingly, it turns out that $\alpha=0.5/K$, and $\beta=0.1/K$ are best hyper
 
 ## Different Number of Topics (K)
 
-In `gird_searck_k.py`, we search different $K$ while keeping $\alpha=0.5/K$, $\beta=0.1/K$ fixed, which turns out to be the "best" choice according to our experiments in the previous section.
+In `gird_searck_k.py`, we search different $K$ while (1) keeping $\alpha=0.5/K$, $\beta=0.1/K$ fixed or (2) keeping $\alpha=50/K$, $\beta=0.01$ fixed. The first setting of $\alpha$ and $\beta$ turns out to be the "best" choice according to our experiments in the previous section; while the second setting is common in the literature.
 
-| log likelihood                                               | time                                                         |
+| log likelihood ($alpha=0.5/K$, $beta=0.1/K$)                 | time                                                         |
 | ------------------------------------------------------------ | ------------------------------------------------------------ |
 | <img src="plots/different_k.jpg" alt="different_k" style="zoom:12%;" /> | <img src="plots/timing_k.jpg" alt="timing_k" style="zoom:12%;" /> |
+| **log likelihood ($alpha=50/K$, $\beta=0.01$)**              |                                                              |
+| <img src="plots/different_k_2.jpg" alt="different_k" style="zoom:12%;" /> |                                                              |
 
-In the experiment result, the log likelihood is monotonically increasing when $K$ increases. Time consumed per iteration is linear with respect to $K$.
+When $\alpha=50/K$ and $\beta=0.01$, the log likelihood first increases then decreases, achieving a maximal value when $k\approx 300$. When $\alpha=0.5/K$ and $\beta=0.1/K$, the log likelihood is monotonically increasing with respect to $K$. 
 
-When $K$ is large, each topic tends to become much more "fine-grained". The number of representative words decreases, and the conditional probabilities of those representative words increase. In the table below, we demonstrate the top 5 representative words in a topic when $K$ varies.
+Observe that our hyperparameters, $\alpha=0.5/K$, $\beta=0.1/K$, is a much better choice than $\alpha=50/K$, $\beta=0.01$. For example, when $k=500$, the log likelihood of the first setting is about -230000, while the log likelihood of the second setting is only about -390000.
+
+As expected, time consumed per iteration is linear with respect to $K$.
+
+When $K$ is large, each topic tends to become much more "fine-grained". The number of representative words decreases, and the conditional probabilities of those representative words increase. In the table below, we demonstrate the top 5 representative words in a topic when $K$ varies ($\alpha=0.5/K$, $\beta=0.1/K$).
 
 | K=3      | probability | K=20        | probability | K=40        | probability |
 | -------- | ----------- | ----------- | ----------- | ----------- | ----------- |
